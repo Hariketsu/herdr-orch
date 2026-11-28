@@ -7,10 +7,18 @@ coordinator.
 
 ## Profile
 
-- **Strengths**: deep codebase tracing, multi-file rebase conflict resolution,
-  isolated backend/algorithm work, static-contract registration, and catching
-  subtle bugs in code review.
+- **Strengths**: deep codebase tracing, static cross-repo fact-checking,
+  reverse-TDD red-phase test authoring (locking edge cases and timing before
+  implementation), multi-file rebase conflict resolution, isolated
+  protocol/algorithm modules with settled contracts, and catching subtle bugs
+  (races, boundary conditions, leaks) in independent code review.
 - **Failure modes to guard against**:
+  - *Test-probe overfitting & procedural collapse*: tends to hardcode single
+    acceptance-probe assumptions or temporary placeholders into schemas and
+    production logic, and packs complex state machines into monolithic
+    procedural functions and module-level mutable state instead of clean
+    abstractions. Avoid delegating greenfield architecture or long-lived
+    domain modeling.
   - *Literal obedience*: executes wrong premises without pushing back, because
     it assumes the brief's facts are authoritative.
   - *Rabbit holes*: spots adjacent code and launches unrequested refactors,
@@ -40,6 +48,11 @@ Match reasoning effort to risk rather than defaulting to the maximum:
 
 - **Pin the file scope**: name the exact files it may edit and state that
   adjacent code must stay untouched.
+- **Forbid probe-specific shortcuts**: state clearly that test scenarios are
+  examples, not upper bounds—do not hardcode single-probe assumptions or
+  temporary caller placeholders into production schemas or control flow, and
+  split multi-stage state machines into cohesive helpers rather than one
+  monolithic function.
 - **Grant the `blocked` exit**: explicitly tell it not to weaken tests or
   guards—if an upstream rule or design conflict changes scope, abort cleanly
   and report `blocked`.
@@ -57,9 +70,12 @@ Match reasoning effort to risk rather than defaulting to the maximum:
 - Pass `--no-daemon` so commands execute inside `herdr-core`.
 - Use `-s read-only` for pure reviews and audits; use `-s workspace-write -a
   on-request` for coding and rebasing.
-- For a git worktree, grant access to the main repository `.git` directory and
-  the briefs directory via `--add-dir`, and omit draft directories it should
-  not touch.
+- Use `--add-dir` **only** with `-s workspace-write` (for a git worktree, grant
+  the main repository `.git` directory and briefs directory, omitting draft
+  directories it should not touch). Never pass `--add-dir` with `-s read-only`:
+  Codex exits immediately (`effective permissions do not allow additional
+  writable roots`), and `-s read-only` can already read external brief paths
+  directly.
 - Launch without an initial task argument first so startup dialogs (such as
   `Update available` or folder trust) can be dismissed cleanly before sending
   the brief.
@@ -70,9 +86,12 @@ Before accepting a commit or patch from `gpt-6.2-sol`:
 
 - Confirm the exact commit hash (`git rev-parse HEAD`) and working tree status
   rather than trusting the reported hash.
-- Read the full diff for unrequested refactors, unused branches, truncated
-  comments, or leaked PR numbers.
+- Read the actual implementation diff (not just `--stat` or file headers) for
+  unrequested refactors, unused branches, truncated comments, leaked PR
+  numbers, hardcoded test/placeholder assumptions, or monolithic procedural
+  functions that will be hard to maintain.
 - Check commit messages for internal workflow jargon and required sign-offs
   (`Signed-off-by`).
-- Run real tests and repository guards on the target environment, and write all
+- Run real tests and repository guards on the target environment (including
+  root typechecks/lints that a narrow subset check may miss), and write all
   PR descriptions, review replies, and issue comments yourself.
